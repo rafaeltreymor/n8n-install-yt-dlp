@@ -48,3 +48,124 @@ instalar_yt_dlp() {
                 else
                     echo -e "${vermelho}Erro durante a atualização. Verifique os logs acima.${reset}"
                 fi
+                ;;
+            2)
+                echo -e "${amarelo}Desinstalando yt-dlp...${reset}"
+                docker exec --user root $container_id sh -c "pipx uninstall yt-dlp"
+                if [ $? -eq 0 ]; then
+                    echo -e "${verde}yt-dlp desinstalado com sucesso!${reset}"
+                else
+                    echo -e "${vermelho}Erro durante a desinstalação. Verifique os logs acima.${reset}"
+                fi
+                ;;
+            3)
+                echo -e "${amarelo}Retornando à seleção de containers...${reset}"
+                return 2
+                ;;
+            4)
+                echo -e "${amarelo}Saindo...${reset}"
+                exit 0
+                ;;
+            *)
+                echo -e "${vermelho}Opção inválida! Saindo...${reset}"
+                exit 1
+                ;;
+        esac
+        return 0
+    fi
+
+    # Instala as dependências
+    echo -e "${amarelo}Instalando dependências...${reset}"
+    docker exec --user root $container_id sh -c "apk update && apk add --no-cache python3 py3-pip py3-pipx"
+
+    # Instala yt-dlp via pipx
+    echo -e "${amarelo}Instalando yt-dlp via pipx...${reset}"
+    docker exec --user root $container_id sh -c "pipx install yt-dlp"
+
+    if [ $? -eq 0 ]; then
+        echo -e "${verde}yt-dlp instalado com sucesso!${reset}"
+    else
+        echo -e "${vermelho}Erro durante a instalação. Verifique os logs acima.${reset}"
+    fi
+}
+
+# Lista os containers disponíveis
+listar_containers
+
+# Verifica se existem containers n8n
+if ! docker ps --format "{{.Names}}" | grep -q n8n; then
+    echo -e "${vermelho}Nenhum container n8n encontrado!${reset}"
+    echo -e "${amarelo}Certifique-se de que o stack n8n está em execução.${reset}"
+    exit 1
+fi
+
+# Conta o número de containers n8n
+num_containers=$(docker ps --format "{{.Names}}" | grep n8n | wc -l)
+
+# Se houver apenas um container, seleciona automaticamente
+if [ "$num_containers" -eq 1 ]; then
+    container_name=$(docker ps --format "{{.Names}}" | grep n8n | head -n 1)
+    container_id=$(docker ps -q -f name=$container_name)
+    echo -e "${amarelo}Container selecionado automaticamente: $container_name${reset}"
+else
+    echo -e "${amarelo}Digite o número do container onde deseja instalar o yt-dlp (ou 'q' para sair):${reset}"
+    read -p "> " opcao
+
+    if [[ "$opcao" =~ ^[Qq]$ ]]; then
+        echo -e "${amarelo}Saindo...${reset}"
+        exit 0
+    fi
+
+    if ! [[ "$opcao" =~ ^[0-9]+$ ]]; then
+        echo -e "${vermelho}Opção inválida!${reset}"
+        exit 1
+    fi
+
+    container_name=$(docker ps --format "{{.Names}}" | grep n8n | sed -n "${opcao}p")
+    if [ -z "$container_name" ]; then
+        echo -e "${vermelho}Container não encontrado!${reset}"
+        exit 1
+    fi
+    container_id=$(docker ps -q -f name=$container_name)
+fi
+
+echo -e "${amarelo}Você selecionou o container: $container_name${reset}"
+echo -e "${amarelo}Deseja instalar o yt-dlp neste container? (s/n)${reset}"
+read -p "> " confirmacao
+
+if [[ "$confirmacao" =~ ^[Ss]$ ]]; then
+    while true; do
+        instalar_yt_dlp $container_id
+        if [ $? -eq 2 ]; then
+            listar_containers
+            echo -e "${amarelo}Digite o número do container onde deseja instalar o yt-dlp (ou 'q' para sair):${reset}"
+            read -p "> " opcao
+            if [[ "$opcao" =~ ^[Qq]$ ]]; then
+                echo -e "${amarelo}Saindo...${reset}"
+                exit 0
+            fi
+            if ! [[ "$opcao" =~ ^[0-9]+$ ]]; then
+                echo -e "${vermelho}Opção inválida!${reset}"
+                exit 1
+            fi
+            container_name=$(docker ps --format "{{.Names}}" | grep n8n | sed -n "${opcao}p")
+            if [ -z "$container_name" ]; then
+                echo -e "${vermelho}Container não encontrado!${reset}"
+                exit 1
+            fi
+            container_id=$(docker ps -q -f name=$container_name)
+            echo -e "${amarelo}Você selecionou o container: $container_name${reset}"
+            echo -e "${amarelo}Deseja instalar o yt-dlp neste container? (s/n)${reset}"
+            read -p "> " confirmacao
+            if [[ ! "$confirmacao" =~ ^[Ss]$ ]]; then
+                echo -e "${amarelo}Operação cancelada.${reset}"
+                exit 0
+            fi
+            continue
+        else
+            break
+        fi
+    done
+else
+    echo -e "${amarelo}Operação cancelada.${reset}"
+fi
