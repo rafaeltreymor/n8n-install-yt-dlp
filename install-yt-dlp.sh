@@ -24,7 +24,7 @@ listar_containers() {
     echo ""
 }
 
-# Função para instalar yt-dlp via pipx
+# Função para instalar yt-dlp via pip
 instalar_yt_dlp() {
     local container_id=$1
     echo -e "${azul}Iniciando instalação do yt-dlp no container $container_id...${reset}"
@@ -42,7 +42,7 @@ instalar_yt_dlp() {
         case $opcao in
             1)
                 echo -e "${amarelo}Atualizando yt-dlp...${reset}"
-                docker exec --user root $container_id sh -c "pipx upgrade yt-dlp"
+                docker exec --user root $container_id sh -c "pip install --no-cache-dir --upgrade yt-dlp"
                 if [ $? -eq 0 ]; then
                     echo -e "${verde}yt-dlp atualizado com sucesso!${reset}"
                 else
@@ -51,7 +51,7 @@ instalar_yt_dlp() {
                 ;;
             2)
                 echo -e "${amarelo}Desinstalando yt-dlp...${reset}"
-                docker exec --user root $container_id sh -c "pipx uninstall yt-dlp"
+                docker exec --user root $container_id sh -c "pip uninstall -y yt-dlp"
                 if [ $? -eq 0 ]; then
                     echo -e "${verde}yt-dlp desinstalado com sucesso!${reset}"
                 else
@@ -76,11 +76,11 @@ instalar_yt_dlp() {
 
     # Instala as dependências
     echo -e "${amarelo}Instalando dependências...${reset}"
-    docker exec --user root $container_id sh -c "apk update && apk add --no-cache python3 py3-pip py3-pipx"
+    docker exec --user root $container_id sh -c "apk update && apk add --no-cache python3 py3-pip"
 
-    # Instala yt-dlp via pipx
-    echo -e "${amarelo}Instalando yt-dlp via pipx...${reset}"
-    docker exec --user root $container_id sh -c "pipx install yt-dlp"
+    # Instala yt-dlp via pip
+    echo -e "${amarelo}Instalando yt-dlp via pip...${reset}"
+    docker exec --user root $container_id sh -c "pip install --no-cache-dir --upgrade yt-dlp"
 
     if [ $? -eq 0 ]; then
         echo -e "${verde}yt-dlp instalado com sucesso!${reset}"
